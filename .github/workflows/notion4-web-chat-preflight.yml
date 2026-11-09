@@ -50,3 +50,25 @@ jobs:
           PROXY_CONFIG: ${{ secrets.XRAY_CONFIG }}
         run: |
           if [ -n "$PROXY_CONFIG" ]; then echo 'Proxy configuration present; connectivity not tested.'; else echo 'Proxy configuration missing.'; exit 1; fi
+  acc3-secret-management-access:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'notion4/gemini-web-chatbot-acc3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check account token can read secrets metadata
+        env:
+          ACCOUNT_TOKEN: ${{ secrets.ACC3_PAT }}
+        run: |
+          python3 - <<'CHECK'
+          import os, sys, urllib.request, urllib.error
+          token = os.getenv('ACCOUNT_TOKEN')
+          if not token:
+              print('ACC3 repository credential missing.'); sys.exit(1)
+          req = urllib.request.Request('https://api.github.com/repos/ngocgminh5-debug/agw-workers/actions/secrets/public-key', headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json'})
+          try:
+              with urllib.request.urlopen(req, timeout=20) as r: print('ACC3 secrets metadata HTTP status:', r.status)
+          except urllib.error.HTTPError as e:
+              print('ACC3 secrets metadata HTTP status:', e.code); sys.exit(1)
+          except Exception as e:
+              print('ACC3 metadata check failed:', type(e).__name__); sys.exit(1)
+          CHECK
