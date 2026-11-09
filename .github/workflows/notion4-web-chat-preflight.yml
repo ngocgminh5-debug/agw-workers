@@ -1,0 +1,52 @@
+name: ACC3 Gemini web chatbot preflight
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - .github/workflows/notion4-web-chat-preflight.yml
+permissions:
+  contents: read
+jobs:
+  web-session-present:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'notion4/gemini-web-chatbot-acc3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check required session is configured
+        env:
+          WEB_SESSION: ${{ secrets.GEMINI_WEB_COOKIES_ACC3 }}
+        run: |
+          if [ -n "$WEB_SESSION" ]; then echo 'Session secret present; validity not tested.'; else echo 'Session secret missing.'; exit 1; fi
+  results-repository-access:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'notion4/gemini-web-chatbot-acc3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check private results repository access
+        env:
+          REPO_TOKEN: ${{ secrets.ACC6_PAT }}
+        run: |
+          python3 - <<'PY'
+          import os, sys, urllib.request, urllib.error
+          token = os.getenv('REPO_TOKEN')
+          if not token:
+              print('Results repository token missing.'); sys.exit(1)
+          req = urllib.request.Request('https://api.github.com/repos/mohammadlali0707-stack/hq-ai-results', headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json'})
+          try:
+              with urllib.request.urlopen(req, timeout=20) as r: print('Results repository HTTP status:', r.status)
+          except urllib.error.HTTPError as e:
+              print('Results repository HTTP status:', e.code); sys.exit(1)
+          except Exception as e:
+              print('Results repository check failed:', type(e).__name__); sys.exit(1)
+          PY
+  network-configuration-present:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'notion4/gemini-web-chatbot-acc3'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check proxy configuration
+        env:
+          PROXY_CONFIG: ${{ secrets.XRAY_CONFIG }}
+        run: |
+          if [ -n "$PROXY_CONFIG" ]; then echo 'Proxy configuration present; connectivity not tested.'; else echo 'Proxy configuration missing.'; exit 1; fi
